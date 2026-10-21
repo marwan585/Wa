@@ -4,6 +4,24 @@ Panduan lengkap menjalankan **Sister Blast** di VPS Anda sendiri, berjalan langs
 
 ---
 
+## ⚡ Instalasi Cepat (1 Command)
+
+Jika project sudah di-clone di `/root/Wa`, jalankan **satu command** berikut — otomatis update kode terbaru dari GitHub, install dependensi, build, dan jalankan via PM2:
+
+```bash
+cd /root/Wa && git fetch origin && git reset --hard origin/main && mkdir -p sessions && sed -i "s|/opt/sisterblast|$PWD|g; s|ganti-dengan-string-acak-panjang-untuk-user|$(openssl rand -hex 32)|; s|ganti-dengan-string-acak-panjang-untuk-admin|$(openssl rand -hex 32)|" ecosystem.config.js && echo "DATABASE_URL=file:$PWD/db/custom.db" > .env && npm install --legacy-peer-deps && npx prisma generate && npm run build && (pm2 delete sister-blast 2>/dev/null; true) && pm2 start ecosystem.config.js && pm2 save && sleep 3 && pm2 logs sister-blast --lines 15 --nostream
+```
+
+Apa yang dilakukan command ini:
+1. **Sinkronisasi kode** — ambil versi terbaru dari GitHub (perbaikan `ecosystem.config.js`)
+2. **Sesuaikan path** — `DATABASE_URL` & `SESSION_DIR` otomatis mengikuti lokasi project (`/root/Wa`)
+3. **Generate secret acak** — `AUTH_SECRET` & `ADMIN_SECRET` dibuat otomatis (aman)
+4. **Install + build + start** — npm install, prisma generate, next build, PM2 start port 443
+
+> Catatan: jika command ini dijalankan ulang, database akan kembali ke kondisi awal (versi GitHub) dan semua sesi login user ter-logout (secret baru dibuat). Data penting sebaiknya di-backup dulu.
+
+---
+
 ## 1. Persiapan VPS
 
 Spesifikasi minimum: **1 vCPU, 1 GB RAM, 10 GB storage**, sistem operasi **Ubuntu 20.04 / 22.04 / 24.04**.
