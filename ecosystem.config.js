@@ -1,5 +1,5 @@
-# PM2 Ecosystem — Sister Blast (Produksi VPS)
-# Jalankan: pm2 start ecosystem.config.js && pm2 save
+// PM2 Ecosystem — Sister Blast (Produksi VPS)
+// Jalankan: pm2 start ecosystem.config.js && pm2 save
 module.exports = {
   apps: [
     {
