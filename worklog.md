@@ -56,3 +56,17 @@ Work Log:
 
 Stage Summary:
 - User tinggal git pull di VPS lalu ulangi pm2 start ecosystem.config.js
+
+---
+Task ID: 4
+Agent: Main Agent (Z.ai)
+Task: Buat 1 command bash instalasi+lengkap untuk VPS user
+
+Work Log:
+- Diagnosis: VPS masih pakai ecosystem.config.js versi lama (belum git pull)
+- Buat one-liner: git fetch+reset -> sed path dinamis $PWD -> generate secret openssl -> .env fix -> npm install --legacy-peer-deps -> prisma generate -> next build -> pm2 start+save -> logs
+- Tes sed+parse via node: VALID (path, secret, port 443 benar)
+- Tambah section "Instalasi Cepat (1 Command)" di DEPLOYMENT.md, commit+push
+
+Stage Summary:
+- User tinggal copy-paste 1 command di /root/Wa untuk install & jalankan semuanya
