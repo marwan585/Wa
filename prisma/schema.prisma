@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  username     String       @unique
+  phone        String
+  password     String
+  balance      Int          @default(0)
+  totalEarned  Int          @default(0)
+  status       String       @default("ACTIVE") // ACTIVE | BANNED
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  sessions     WaSession[]
+  blasts       Blast[]
+  withdrawals  Withdrawal[]
+}
+
+model Admin {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String
+  createdAt DateTime @default(now())
+}
+
+model WaSession {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phone     String
+  status    String   @default("WAITING_PAIRING") // WAITING_PAIRING | PAIRING_CODE | CONNECTED | DISCONNECTED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Blast {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionPhone String?
+  targetNumber String
+  message      String
+  status       String   @default("PENDING") // PENDING | SENT | FAILED
+  earning      Int      @default(0)
+  note         String?
+  createdAt    DateTime @default(now())
+}
+
+model Withdrawal {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount      Int
+  method      String // DANA | OVO | GOPAY | BANK | PULSA
+  accountInfo String
+  status      String    @default("PENDING") // PENDING | SUCCESS | FAILED
+  note        String?
+  createdAt   DateTime  @default(now())
+  processedAt DateTime?
+}
+
+model Setting {
+  id              String   @id @default("main")
+  messageTemplate String   @default("")
+  ratePerChat     Int      @default(900)
+  minWithdraw     Int      @default(10000)
+  maintenance     Boolean  @default(false)
+  maintenanceNote String   @default("Sistem sedang dalam pemeliharaan. Silakan kembali lagi nanti.")
+  updatedAt       DateTime @updatedAt
+}
+
+model TargetNumber {
+  id        String   @id @default(cuid())
+  phone     String   @unique
+  country   String   @default("62")
+  status    String   @default("AVAILABLE") // AVAILABLE | USED
+  createdAt DateTime @default(now())
+}
