@@ -42,3 +42,17 @@ Work Log:
 Stage Summary:
 - Repo GitHub marwan585/Wa berisi 130 file project lengkap (src, prisma, DEPLOYMENT.md, dll)
 - Branch main sinkron dengan origin/main, working tree bersih
+
+---
+Task ID: 3
+Agent: Main Agent (Z.ai)
+Task: Perbaiki error PM2 "File ecosystem.config.js malformated" di VPS user
+
+Work Log:
+- Diagnosis: komentar di awal file memakai # (sintaks shell) bukan // (JavaScript), PM2 gagal parse
+- Edit ecosystem.config.js: komentar # diganti //
+- Validasi via node require() -> VALID (app: sister-blast, script: .next/standalone/server.js, PORT: 443)
+- Commit + push ke GitHub origin/main
+
+Stage Summary:
+- User tinggal git pull di VPS lalu ulangi pm2 start ecosystem.config.js
