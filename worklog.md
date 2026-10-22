@@ -125,3 +125,17 @@ Work Log:
 Stage Summary:
 - Deploy VPS user BERHASIL. Website live di http://IP:2053
 - Sisa langkah user: cek akses browser, pm2 startup (auto-boot), pm2 flush (bersihkan log lama)
+
+---
+Task ID: 9
+Agent: Main Agent (Z.ai)
+Task: User gagal login admin (screenshot: login di halaman user biasa)
+
+Work Log:
+- Verifikasi kode: login admin hanya via /#/adm (route tersembunyi), POST /api/admin/auth seed admin dari env jika tabel kosong
+- Verifikasi DB: tabel Admin berisi 1 row (username Marwan, hash marwan123 dari seed) — kredensial benar
+- Diagnosis: user login di halaman USER biasa (/#/login) yang mengecek tabel User -> wajar ditolak
+
+Stage Summary:
+- Solusi: login admin HARUS di http://IP:2053/#/adm dengan Marwan/marwan123
+- Ini by design (kredensial admin tidak tampil di UI manapun)
