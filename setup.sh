@@ -71,13 +71,24 @@ ok "Path DB: ${APP_DIR}/db/custom.db"
 
 # ---------- 4. Dependencies ----------
 step "4/7 Install dependencies (npm install)"
-npm install --legacy-peer-deps --no-audit --no-fund --loglevel=error
-ok "Dependencies siap"
+npm install --legacy-peer-deps --no-audit --no-fund --loglevel=error || fail "npm install gagal — jalankan manual untuk lihat error"
+ok "Dependencies siap (Prisma client otomatis di-generate via postinstall)"
 
 # ---------- 5. Prisma ----------
-step "5/7 Generate Prisma client & sinkron skema database"
-npx prisma generate --loglevel=error
-npx prisma db push --skip-generate
+step "5/7 Sinkron skema database + generate Prisma client"
+npx prisma generate --loglevel=error || fail "prisma generate gagal — cek koneksi lalu jalankan 'npx prisma generate' manual"
+npx prisma db push --loglevel=error || fail "prisma db push gagal — skema database tidak bisa disinkronkan"
+
+# Verifikasi: Prisma client & kolom database WAJIB sudah mengenal field terbaru.
+# Kalau tidak, tombol-aksi (mis. Simpan Jeda) akan error "Invalid invocation".
+DATABASE_URL="file:${APP_DIR}/db/custom.db" node -e "
+const { PrismaClient } = require('@prisma/client');
+const p = new PrismaClient({ log: ['error'] });
+p.user.findFirst({ select: { blastDelay: true, balance: true } })
+  .then(() => { console.log('  Prisma client & kolom database terverifikasi OK'); process.exit(0); })
+  .catch((e) => { console.error('  ' + (e.message || e).toString().slice(0, 300)); process.exit(1); })
+  .finally(() => p.\$disconnect());
+" || fail "Prisma client / kolom database belum sinkron — jalankan 'npx prisma db push' manual lalu ulangi setup"
 ok "Database siap (data lama tetap utuh)"
 
 # ---------- 6. Build ----------
