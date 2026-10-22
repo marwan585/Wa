@@ -158,3 +158,21 @@ Work Log:
 Stage Summary:
 - User jalankan command update di VPS (prisma db push + build + restart)
 - Pairing kini andal; akun WhatsApp Business didukung penuh + terdeteksi otomatis
+
+---
+Task ID: 11
+Agent: Main Agent (Z.ai)
+Task: UI modern (floating navigator + sidebar toggle) + README GitHub
+
+Work Log:
+- globals.css: tambah utilitas sb-dock/dock-dark/dock-in/dock-pop, sb-fab, sb-sidebar, sb-nav-item, sb-nav-active(-dark)
+- user-shell.tsx redesign: sidebar collapsible (264px <-> 80px) + FAB toggle gradient di tepi sidebar,
+  kartu saldo gradien dengan ornamen lingkaran, nav item icon-only saat collapsed,
+  mobile: floating dock glassmorphism bottom-center dengan animasi masuk, topbar saldo pill + logout
+- admin-shell.tsx redesign: versi dark sama (dock 7 menu singkat: Beranda/User/Sesi/Blast/Dana/Nomor/Setelan), FAB toggle
+- README.md baru: fitur, quick install 1 command, manual, pairing, env table, PM2, troubleshooting, keamanan (tanpa membocorkan kredensial admin)
+- Build sukses, commit + push
+
+Stage Summary:
+- UI dashboard user & admin kini modern dengan navigator mengambang + tombol sidebar cantik
+- README terpublish di GitHub; user tinggal jalankan 1 command update di VPS
