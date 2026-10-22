@@ -96,3 +96,18 @@ Work Log:
 
 Stage Summary:
 - Menunggu output user untuk menentukan langkah berikutnya
+
+---
+Task ID: 7
+Agent: Main Agent (Z.ai)
+Task: Pindahkan port aplikasi dari 443 ke 2053
+
+Work Log:
+- Edit ecosystem.config.js: PORT 443 -> 2053 (valid via node require)
+- Update DEPLOYMENT.md menyeluruh: judul, quick install, firewall (ufw 2053, hapus setcap), akses website, nginx proxy_pass -> 2053, troubleshooting
+- Catat bonus: 2053 = port HTTPS didukung Cloudflare
+- Commit + push ke GitHub
+
+Stage Summary:
+- User jalankan 1 command di VPS: git sync + pm2 delete + pm2 start (port 2053)
+- Akses website: http://IP:2053
