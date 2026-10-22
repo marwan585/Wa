@@ -237,6 +237,7 @@ crontab -e
 | Masalah | Solusi |
 |---------|--------|
 | `Error: listen EACCES 0.0.0.0:443` | Jalankan ulang `setcap 'cap_net_bind_service=+ep' $(which node)`, lalu `pm2 restart sister-blast` |
+| `Error: listen EADDRINUSE 0.0.0.0:443` (port dipakai proses lain) | Jalankan 1 command: `ss -tlnp \| grep ':443 '; systemctl stop nginx apache2 caddy lighttpd 2>/dev/null; systemctl disable nginx apache2 caddy lighttpd 2>/dev/null; pm2 kill 2>/dev/null; apt install -y psmisc >/dev/null 2>&1; fuser -k 443/tcp 2>/dev/null; sleep 2; cd /root/Wa && pm2 start ecosystem.config.js && pm2 save && sleep 4 && pm2 logs sister-blast --lines 15 --nostream` |
 | Website tidak bisa diakses | Cek `ufw status`, pastikan 443 dibuka; cek `pm2 logs` |
 | Pairing WhatsApp gagal | Pastikan VPS bisa keluar internet (WebSocket ke `web.whatsapp.com` port 443). Cek `pm2 logs` |
 | Nomor target habis | Login admin → Database Nomor → impor JSON baru |
