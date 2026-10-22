@@ -237,3 +237,23 @@ Stage Summary:
 - Cheat hapus-pesan kini terdeteksi otomatis (berlaku juga saat blast berhenti/server restart, selama sesi WA terhubung)
 - Catatan: hanya blast baru yang punya waMessageId; hapus "untuk saya saja" tidak terdeteksi (bukan revoke server)
 - User update VPS: cd /root/Wa && bash setup.sh (prisma db push otomatis)
+
+---
+Task ID: 15
+Agent: Main Agent (Z.ai)
+Task: "Benarkan" — screenshot: tombol Simpan Jeda error "Tidak bisa menyimpan jeda" di VPS
+
+Work Log:
+- Diagnosis: reproduksi lokal dev (:3000) & prod standalone (:3050) -> set-delay 10x semua 200 OK => kode aplikasi benar, masalah lingkungan VPS
+- Akar paling mungkin: SQLite write-lock (SQLITE_BUSY "database is locked") -> POST gagal 500 tanpa body -> toast fallback generik; GET (read) tetap jalan
+- lib/db.ts: PRAGMA journal_mode=WAL + busy_timeout=10000 saat init, log query hanya dev, helper withDbRetry (4x backoff utk error transient)
+- api/blast set-delay: withDbRetry + try/catch -> 500 berisi pesan error ASLI (UI tidak lagi fallback kosong)
+- lib/blast.ts: blast.create & user.update di loop pakai withDbRetry
+- dash-blast.tsx: fallback toast menyertakan kode HTTP utk diagnosa
+- setup.sh: copy public + .next/static ke .next/standalone (tampilan tidak rusak), pkill proses next yatim sebelum pm2 start (cegah 2 proses rebut lock SQLite)
+- Build ulang + uji ulang prod 5x 200 OK; PRAGMA wal terverifikasi; user uji delaytest1 dihapus
+- Push 9e41625
+
+Stage Summary:
+- Jika masih gagal, toast kini menampilkan penyebab asli (mis. "database is locked") -> mudah didiagnosa
+- VPS: cd /root/Wa && bash setup.sh lalu coba lagi Simpan Jeda; jika masih error kirim pm2 logs sister-blast --lines 40
