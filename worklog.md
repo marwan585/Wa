@@ -215,3 +215,25 @@ Work Log:
 Stage Summary:
 - User bisa atur jeda 3-600 detik; jeda tersimpan per-user di DB, efek langsung tanpa restart blast
 - User update VPS: cd /root/Wa && bash setup.sh (prisma db push otomatis dalam setup.sh)
+
+---
+Task ID: 14
+Agent: Main Agent (Z.ai)
+Task: Keamanan blast — jika user menghapus pesan yang sudah terkirim, saldo otomatis ditarik
+
+Work Log:
+- Riset Baileys 7.0.0-rc14: revoke dikonversi menjadi event `messages.update` dengan update.messageStubType=WAMessageStubType.REVOKE (=1) & key.id = ID pesan yang dihapus; lapis cadangan cek `messages.upsert` protocolMessage type REVOKE (=0)
+- prisma/schema.prisma: Blast.waMessageId String? (+ @@index), Blast.revokedAt DateTime?; db push sukses
+- lib/phone.ts BARU: sanitizePhone + normalizeJid dipindah agar bebas circular import (whatsapp->revoke)
+- lib/revoke.ts BARU: processMessageRevoke idempoten (dedup in-memory + klaim atomik updateMany status != REVOKED), retry 4s jika baris blast belum tertulis, proteksi mismatch JID chat, saldo & totalEarned dikurangi earning (boleh negatif sebagai deterrent)
+- lib/whatsapp.ts: sendText return messageId (sent.key.id); startSocket daftar listener messages.update + messages.upsert -> processMessageRevoke
+- lib/blast.ts: simpan waMessageId saat blast SENT
+- api/blast GET: stats.revokedCount; api/admin/blasts: filter REVOKED; api/admin/stats: revokedBlasts
+- UI: dash-blast alert merah "DILARANG menghapus pesan terkirim" + badge rose "Dihapus −Rp" + catatan revoke; dash-home & admin-blasts badge REVOKED; admin-blasts filter "Dihapus"; admin-home sub "N dihapus"
+- Tes runtime scripts/test-revoke.mjs: penalti benar (5000->4100), duplikat tidak dobel, jid beda diabaikan — SEMUA LULUS
+- Build produksi sukses; push ec88b42
+
+Stage Summary:
+- Cheat hapus-pesan kini terdeteksi otomatis (berlaku juga saat blast berhenti/server restart, selama sesi WA terhubung)
+- Catatan: hanya blast baru yang punya waMessageId; hapus "untuk saya saja" tidak terdeteksi (bukan revoke server)
+- User update VPS: cd /root/Wa && bash setup.sh (prisma db push otomatis)
