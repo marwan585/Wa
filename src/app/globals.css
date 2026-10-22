@@ -188,3 +188,96 @@
   background: oklch(0.6 0.13 163 / 0.4);
   border-radius: 9999px;
 }
+
+/* ---------- Floating app navigator (dock) ---------- */
+.sb-dock {
+  background: rgb(255 255 255 / 0.85);
+  backdrop-filter: blur(20px) saturate(1.5);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+  border: 1px solid rgb(255 255 255 / 0.7);
+  box-shadow:
+    0 16px 44px -14px oklch(0.3 0.06 165 / 0.32),
+    0 3px 10px -3px oklch(0.3 0.06 165 / 0.14),
+    inset 0 1px 0 rgb(255 255 255 / 0.9);
+}
+
+.sb-dock-dark {
+  background: oklch(0.21 0.018 165 / 0.86);
+  backdrop-filter: blur(20px) saturate(1.3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  border: 1px solid rgb(255 255 255 / 0.09);
+  box-shadow:
+    0 16px 44px -14px oklch(0 0 0 / 0.6),
+    0 3px 10px -3px oklch(0 0 0 / 0.35),
+    inset 0 1px 0 rgb(255 255 255 / 0.07);
+}
+
+@keyframes sb-dock-in {
+  from {
+    transform: translate(-50%, 26px);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+.sb-dock-in {
+  animation: sb-dock-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes sb-dock-pop {
+  0% { transform: scale(0.9); }
+  60% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+.sb-dock-item-active {
+  animation: sb-dock-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ---------- Floating action button (sidebar toggle) ---------- */
+.sb-fab {
+  transition:
+    left 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+.sb-fab:hover {
+  transform: scale(1.1);
+}
+.sb-fab:active {
+  transform: scale(0.94);
+}
+
+/* ---------- Collapsible sidebar ---------- */
+.sb-sidebar {
+  transition:
+    width 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.sb-nav-item {
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.15s ease,
+    box-shadow 0.2s ease;
+}
+.sb-nav-item:active {
+  transform: scale(0.97);
+}
+
+/* Subtle animated gradient border for active nav pill */
+.sb-nav-active {
+  background: linear-gradient(120deg, oklch(0.55 0.14 163), oklch(0.62 0.15 175));
+  box-shadow:
+    0 8px 20px -8px oklch(0.55 0.14 163 / 0.55),
+    inset 0 1px 0 rgb(255 255 255 / 0.25);
+}
+
+.sb-nav-active-dark {
+  background: linear-gradient(120deg, oklch(0.52 0.13 163), oklch(0.58 0.14 175));
+  box-shadow:
+    0 8px 20px -8px oklch(0.5 0.13 163 / 0.6),
+    inset 0 1px 0 rgb(255 255 255 / 0.2);
+}
