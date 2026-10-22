@@ -11,7 +11,7 @@ module.exports = {
       max_memory_restart: "500M",
       env: {
         NODE_ENV: "production",
-        PORT: 443,
+        PORT: 2053,
         HOSTNAME: "0.0.0.0",
         // SESUAIKAN path di bawah ini dengan lokasi project di VPS Anda:
         DATABASE_URL: "file:/opt/sisterblast/db/custom.db",

@@ -1,6 +1,8 @@
-# Panduan Deploy Sister Blast di VPS (Port 443)
+# Panduan Deploy Sister Blast di VPS (Port 2053)
 
-Panduan lengkap menjalankan **Sister Blast** di VPS Anda sendiri, berjalan langsung di **IP VPS dengan port 443**.
+Panduan lengkap menjalankan **Sister Blast** di VPS Anda sendiri, berjalan langsung di **IP VPS dengan port 2053**.
+
+> ℹ️ **Kenapa port 2053?** Port di atas 1024 tidak butuh izin khusus (tidak perlu `setcap`), bebas konflik dengan nginx/apache bawaan, dan **2053 adalah salah satu port HTTPS yang didukung Cloudflare** — memudahkan setup HTTPS via Cloudflare nanti.
 
 ---
 
@@ -13,10 +15,10 @@ cd /root/Wa && git fetch origin && git reset --hard origin/main && mkdir -p sess
 ```
 
 Apa yang dilakukan command ini:
-1. **Sinkronisasi kode** — ambil versi terbaru dari GitHub (perbaikan `ecosystem.config.js`)
+1. **Sinkronisasi kode** — ambil versi terbaru dari GitHub
 2. **Sesuaikan path** — `DATABASE_URL` & `SESSION_DIR` otomatis mengikuti lokasi project (`/root/Wa`)
 3. **Generate secret acak** — `AUTH_SECRET` & `ADMIN_SECRET` dibuat otomatis (aman)
-4. **Install + build + start** — npm install, prisma generate, next build, PM2 start port 443
+4. **Install + build + start** — npm install, prisma generate, next build, PM2 start **port 2053**
 
 > Catatan: jika command ini dijalankan ulang, database akan kembali ke kondisi awal (versi GitHub) dan semua sesi login user ter-logout (secret baru dibuat). Data penting sebaiknya di-backup dulu.
 
@@ -96,24 +98,18 @@ Setelah build selesai, folder `.next/standalone` berisi server produksi yang sia
 
 ---
 
-## 4. Izinkan Node Bind ke Port 443
+## 4. Buka Firewall Port 2053
 
-Port di bawah 1024 (termasuk **443**) butuh izin khusus. Berikan kapabilitas ke Node.js:
-
-```bash
-setcap 'cap_net_bind_service=+ep' $(which node)
-```
-
-> Alternatif: jalankan PM2 sebagai root, atau buka firewall port lain. Tapi `setcap` adalah cara paling aman (tanpa menjalankan app sebagai root).
-
-Buka firewall untuk port 443:
+Port **2053** berada di atas 1024, jadi **tidak perlu** `setcap` atau izin khusus. Cukup buka firewall:
 
 ```bash
 ufw allow 22/tcp
-ufw allow 443/tcp
+ufw allow 2053/tcp
 ufw enable
 ufw status
 ```
+
+> ⚠️ Jika VPS Anda memakai security group penyedia cloud (Vultr, DigitalOcean, AWS, dll), buka juga port **2053/TCP** di dashboard penyedia tersebut.
 
 ---
 
@@ -150,23 +146,23 @@ pm2 logs sister-blast --lines 30
 
 ## 6. Akses Website
 
-Website kini berjalan di **IP VPS Anda, port 443**:
+Website kini berjalan di **IP VPS Anda, port 2053**:
 
 ```
-http://IP_VPS_ANDA:443
+http://IP_VPS_ANDA:2053
 ```
 
-Contoh: `http://103.150.10.20:443`
+Contoh: `http://103.150.10.20:2053`
 
-| Halaman            | Alamat (hash route)                    |
-|--------------------|----------------------------------------|
-| Beranda            | `http://IP:443/#/`                     |
-| Daftar             | `http://IP:443/#/register`             |
-| Login              | `http://IP:443/#/login`                |
-| Dashboard          | `http://IP:443/#/dashboard`            |
-| **Panel Admin**    | `http://IP:443/#/adm` (tidak ada tautan di UI — simpan URL ini) |
+| Halaman            | Alamat (hash route)                      |
+|--------------------|------------------------------------------|
+| Beranda            | `http://IP:2053/#/`                      |
+| Daftar             | `http://IP:2053/#/register`              |
+| Login              | `http://IP:2053/#/login`                 |
+| Dashboard          | `http://IP:2053/#/dashboard`             |
+| **Panel Admin**    | `http://IP:2053/#/adm` (tidak ada tautan di UI — simpan URL ini) |
 
-> **Catatan:** port 443 secara konvensi adalah HTTPS. Jika Anda mengakses dengan `https://` tanpa SSL terpasang, browser akan menolak. Gunakan `http://IP:443`, atau pasang SSL (opsi di bagian 7).
+> 💡 **Bonus Cloudflare:** 2053 termasuk port HTTPS yang didukung Cloudflare (`https://IP:2053` bisa diproksi via Cloudflare dengan SSL mode Full).
 
 ---
 
@@ -183,7 +179,7 @@ server {
     listen 443;
     server_name domainanda.com;
     location / {
-        proxy_pass http://127.0.0.1:3000;
+        proxy_pass http://127.0.0.1:2053;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -199,7 +195,7 @@ rm -f /etc/nginx/sites-enabled/default
 nginx -t && systemctl reload nginx
 ```
 
-Ubah `PORT: 443` menjadi `PORT: 3000` di `ecosystem.config.js`, lalu `pm2 restart sister-blast`.
+Aplikasi sudah berjalan di port 2053 — Nginx hanya meneruskan trafik dari port 443 (HTTPS) ke aplikasi. Tidak perlu ubah port di `ecosystem.config.js`.
 
 Pasang SSL gratis:
 
@@ -236,10 +232,10 @@ crontab -e
 
 | Masalah | Solusi |
 |---------|--------|
-| `Error: listen EACCES 0.0.0.0:443` | Jalankan ulang `setcap 'cap_net_bind_service=+ep' $(which node)`, lalu `pm2 restart sister-blast` |
-| `Error: listen EADDRINUSE 0.0.0.0:443` (port dipakai proses lain) | Jalankan 1 command: `ss -tlnp \| grep ':443 '; systemctl stop nginx apache2 caddy lighttpd 2>/dev/null; systemctl disable nginx apache2 caddy lighttpd 2>/dev/null; pm2 kill 2>/dev/null; apt install -y psmisc >/dev/null 2>&1; fuser -k 443/tcp 2>/dev/null; sleep 2; cd /root/Wa && pm2 start ecosystem.config.js && pm2 save && sleep 4 && pm2 logs sister-blast --lines 15 --nostream` |
-| Website tidak bisa diakses | Cek `ufw status`, pastikan 443 dibuka; cek `pm2 logs` |
-| Pairing WhatsApp gagal | Pastikan VPS bisa keluar internet (WebSocket ke `web.whatsapp.com` port 443). Cek `pm2 logs` |
+| `Error: listen EACCES` (port terlarang) | Tidak seharusnya terjadi di port 2053. Jika berubah ke port < 1024, jalankan `setcap 'cap_net_bind_service=+ep' $(which node)` lalu `pm2 restart sister-blast` |
+| `Error: listen EADDRINUSE` (port dipakai proses lain) | Jalankan 1 command: `ss -tlnp \| grep ':2053 '; pkill -9 -x nginx 2>/dev/null; pm2 kill 2>/dev/null; apt install -y psmisc >/dev/null 2>&1; fuser -k 2053/tcp 2>/dev/null; sleep 2; cd /root/Wa && pm2 start ecosystem.config.js && pm2 save && sleep 4 && pm2 logs sister-blast --lines 15 --nostream` |
+| Website tidak bisa diakses | Cek `ufw status`, pastikan **2053** dibuka; cek `pm2 logs`; jika VPS pakai security group cloud, buka 2053/TCP di dashboard penyedia |
+| Pairing WhatsApp gagal | Pastikan VPS bisa keluar internet (WebSocket ke `web.whatsapp.com` port 443 — ini trafik keluar, tidak bentrok dengan port aplikasi). Cek `pm2 logs` |
 | Nomor target habis | Login admin → Database Nomor → impor JSON baru |
 | Lupa login admin | Hapus baris tabel Admin di database (`db/custom.db`) — akun admin akan dibuat ulang otomatis dari `ADMIN_USERNAME`/`ADMIN_PASSWORD` saat login berikutnya |
 
