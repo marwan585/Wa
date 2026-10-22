@@ -12,7 +12,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Radio, CheckCircle2, XCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Loader2,
+  Radio,
+  CheckCircle2,
+  XCircle,
+  ChevronLeft,
+  ChevronRight,
+  Trash2,
+} from "lucide-react";
 
 interface BlastRow {
   id: string;
@@ -70,6 +78,7 @@ export default function AdminBlasts() {
             <SelectItem value="ALL">Semua</SelectItem>
             <SelectItem value="SENT">Terkirim</SelectItem>
             <SelectItem value="FAILED">Gagal</SelectItem>
+            <SelectItem value="REVOKED">Dihapus</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -107,6 +116,11 @@ export default function AdminBlasts() {
                       <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 gap-1">
                         <CheckCircle2 className="h-3 w-3" />
                         +{rupiah(b.earning)}
+                      </Badge>
+                    ) : b.status === "REVOKED" ? (
+                      <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 gap-1">
+                        <Trash2 className="h-3 w-3" />
+                        Dihapus −{rupiah(b.earning)}
                       </Badge>
                     ) : (
                       <Badge variant="destructive" className="gap-1">

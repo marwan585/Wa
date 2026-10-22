@@ -130,6 +130,8 @@ export async function runBlastLoop(run: BlastRun) {
             message,
             status: "SENT",
             earning: settings.ratePerChat,
+            // ID pesan Baileys — dipakai anti-cheat deteksi penghapusan pesan
+            waMessageId: result.messageId ?? null,
           },
         });
         await db.user.update({

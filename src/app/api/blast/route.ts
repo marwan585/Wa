@@ -11,10 +11,11 @@ export async function GET() {
   const settings = await getSettings();
   const run = getRun(user.id);
 
-  const [targetsAvailable, targetsUsed, sentCount, recent] = await Promise.all([
+  const [targetsAvailable, targetsUsed, sentCount, revokedCount, recent] = await Promise.all([
     db.targetNumber.count({ where: { status: "AVAILABLE" } }),
     db.targetNumber.count({ where: { status: "USED" } }),
     db.blast.count({ where: { userId: user.id, status: "SENT" } }),
+    db.blast.count({ where: { userId: user.id, status: "REVOKED" } }),
     db.blast.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
@@ -36,7 +37,7 @@ export async function GET() {
         }
       : null,
     targets: { available: targetsAvailable, used: targetsUsed },
-    stats: { sentCount },
+    stats: { sentCount, revokedCount },
     settings: {
       ratePerChat: settings.ratePerChat,
       maintenance: settings.maintenance,

@@ -30,6 +30,7 @@ import {
   Activity,
   Timer,
   Save,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -54,7 +55,7 @@ interface BlastData {
     startedAt: number;
   } | null;
   targets: { available: number; used: number };
-  stats: { sentCount: number };
+  stats: { sentCount: number; revokedCount: number };
   settings: {
     ratePerChat: number;
     maintenance: boolean;
@@ -196,6 +197,17 @@ export default function DashBlast() {
           </AlertDescription>
         </Alert>
       )}
+
+      {/* Keamanan anti-cheat: dilarang menghapus pesan terkirim */}
+      <Alert className="border-rose-200 bg-rose-50 text-rose-800">
+        <ShieldAlert className="h-4 w-4 text-rose-600" />
+        <AlertDescription className="text-sm">
+          <b>Aturan penting:</b> DILARANG menghapus pesan yang sudah terkirim.
+          Sistem memantau setiap pesan blast — jika Anda menghapus pesan
+          ("Hapus untuk semua") setelah terkirim, saldo otomatis DITARIK
+          sebesar nilai chat tersebut.
+        </AlertDescription>
+      </Alert>
 
       {/* Control panel */}
       <Card className="border-emerald-100 shadow-md shadow-emerald-900/5">
@@ -356,7 +368,15 @@ export default function DashBlast() {
             <Send className="h-4 w-4 text-emerald-600" />
             Riwayat Blast Terakhir
           </CardTitle>
-          <CardDescription>20 aktivitas blast terakhir Anda.</CardDescription>
+          <CardDescription>
+            20 aktivitas blast terakhir Anda.
+            {data.stats.revokedCount > 0 && (
+              <span className="text-rose-600 font-medium">
+                {" "}
+                {data.stats.revokedCount} pesan dihapus &amp; saldo ditarik.
+              </span>
+            )}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {data.recent.length === 0 ? (
@@ -372,13 +392,20 @@ export default function DashBlast() {
                     <p className="text-sm font-semibold text-slate-800">+{b.targetNumber}</p>
                     <p className="text-[11px] text-slate-400">
                       {dateTime(b.createdAt)}
-                      {b.status === "FAILED" && b.note ? ` — ${b.note}` : ""}
+                      {(b.status === "FAILED" || b.status === "REVOKED") && b.note
+                        ? ` — ${b.note}`
+                        : ""}
                     </p>
                   </div>
                   {b.status === "SENT" ? (
                     <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 shrink-0">
                       <CheckCircle2 className="h-3 w-3 mr-1" />
                       +{rupiah(b.earning)}
+                    </Badge>
+                  ) : b.status === "REVOKED" ? (
+                    <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 shrink-0 gap-1">
+                      <Trash2 className="h-3 w-3" />
+                      Dihapus −{rupiah(b.earning)}
                     </Badge>
                   ) : (
                     <Badge variant="destructive" className="shrink-0 gap-1">

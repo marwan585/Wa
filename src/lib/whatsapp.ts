@@ -7,8 +7,13 @@ import {
   fetchLatestBaileysVersion,
   DisconnectReason,
   Browsers,
+  WAProto,
 } from "@whiskeysockets/baileys";
 import { db } from "@/lib/db";
+import { sanitizePhone, normalizeJid } from "@/lib/phone";
+import { processMessageRevoke } from "@/lib/revoke";
+
+export { sanitizePhone, normalizeJid };
 
 const logger = pino({ level: "silent" });
 
@@ -57,16 +62,6 @@ function sleep(ms: number) {
 
 export function sessionsDir(): string {
   return process.env.SESSION_DIR || path.join(process.cwd(), "sessions");
-}
-
-export function sanitizePhone(input: string): string {
-  let digits = (input || "").replace(/\D/g, "");
-  if (digits.startsWith("0")) digits = "62" + digits.slice(1);
-  return digits;
-}
-
-export function normalizeJid(phone: string): string {
-  return `${sanitizePhone(phone)}@s.whatsapp.net`;
 }
 
 async function removeSessionFolder(sessionId: string) {
@@ -162,6 +157,59 @@ export async function startSocket(
     runtime.pairingCode = undefined;
 
     sock.ev.on("creds.update", saveCreds);
+
+    /**
+     * ANTI-CHEAT: deteksi pesan blast yang DIHAPUS oleh user.
+     *
+     * Baileys 7 mengubah protocolMessage REVOKE menjadi event `messages.update`
+     * dengan update.messageStubType = WAMessageStubType.REVOKE (=1) dan
+     * key.id = ID pesan yang dihapus. Sebagai lapisan cadangan, event
+     * `messages.upsert` juga diperiksa untuk protocolMessage tipe REVOKE (=0).
+     */
+    sock.ev.on("messages.update", (updates) => {
+      try {
+        for (const up of updates) {
+          const stubType = up.update?.messageStubType;
+          const isRevoke =
+            stubType === WAProto.WebMessageInfo.StubType.REVOKE ||
+            Number(stubType) === 1;
+          if (!isRevoke) continue;
+          const deletedId =
+            (up.update?.key as { id?: string } | undefined)?.id ||
+            up.key?.id ||
+            null;
+          const remoteJid =
+            (up.update?.key as { remoteJid?: string } | undefined)?.remoteJid ||
+            up.key?.remoteJid ||
+            null;
+          void processMessageRevoke({
+            userId,
+            deletedMessageId: deletedId,
+            remoteJid,
+          });
+        }
+      } catch (err) {
+        console.error("[WA] revoke handler (update) error", err);
+      }
+    });
+
+    sock.ev.on("messages.upsert", ({ messages }) => {
+      try {
+        for (const m of messages) {
+          const pm = m.message?.protocolMessage as
+            | { type?: number | null; key?: { id?: string; remoteJid?: string } | null }
+            | undefined;
+          if (!pm || Number(pm.type) !== 0 /* ProtocolMessage.Type.REVOKE */) continue;
+          void processMessageRevoke({
+            userId,
+            deletedMessageId: pm.key?.id || null,
+            remoteJid: pm.key?.remoteJid || m.key?.remoteJid || null,
+          });
+        }
+      } catch (err) {
+        console.error("[WA] revoke handler (upsert) error", err);
+      }
+    });
 
     /**
      * Ask WhatsApp for a pairing code with retry.
@@ -342,15 +390,15 @@ export async function sendText(
   sessionId: string,
   toPhone: string,
   text: string
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; messageId?: string }> {
   const rt = waManager.sessions.get(sessionId);
   if (!rt || rt.status !== "CONNECTED" || !rt.socket) {
     return { ok: false, error: "Sesi WhatsApp tidak terhubung" };
   }
   const jid = normalizeJid(toPhone);
   try {
-    await rt.socket.sendMessage(jid, { text });
-    return { ok: true };
+    const sent = await rt.socket.sendMessage(jid, { text });
+    return { ok: true, messageId: sent?.key?.id || undefined };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Gagal mengirim pesan";
     return { ok: false, error: msg };

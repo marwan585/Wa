@@ -43,16 +43,20 @@ model WaSession {
 }
 
 model Blast {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   sessionPhone String?
   targetNumber String
   message      String
-  status       String   @default("PENDING") // PENDING | SENT | FAILED
-  earning      Int      @default(0)
+  status       String    @default("PENDING") // PENDING | SENT | FAILED | REVOKED
+  earning      Int       @default(0)
   note         String?
-  createdAt    DateTime @default(now())
+  waMessageId  String?   // ID pesan Baileys (untuk deteksi pesan dihapus / anti-cheat)
+  revokedAt    DateTime? // diisi saat pesan terkirim dihapus oleh user (saldo ditarik)
+  createdAt    DateTime  @default(now())
+
+  @@index([waMessageId])
 }
 
 model Withdrawal {

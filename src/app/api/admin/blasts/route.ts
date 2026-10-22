@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   const status = searchParams.get("status") || "";
 
   const where: Record<string, unknown> = {};
-  if (status && ["SENT", "FAILED", "PENDING"].includes(status)) {
+  if (status && ["SENT", "FAILED", "PENDING", "REVOKED"].includes(status)) {
     where.status = status;
   }
 

@@ -16,6 +16,7 @@ import {
   ShieldAlert,
   RefreshCw,
   ArrowRight,
+  Trash2,
 } from "lucide-react";
 
 interface BlastRow {
@@ -210,6 +211,11 @@ export default function DashHome() {
                       <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
                         <CheckCircle2 className="h-3 w-3 mr-1" />
                         +{rupiah(b.earning)}
+                      </Badge>
+                    ) : b.status === "REVOKED" ? (
+                      <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 gap-1">
+                        <Trash2 className="h-3 w-3" />
+                        Dihapus −{rupiah(b.earning)}
                       </Badge>
                     ) : (
                       <Badge variant="destructive" className="gap-1">

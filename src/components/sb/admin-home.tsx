@@ -27,6 +27,7 @@ interface Stats {
     blasts: number;
     sentBlasts: number;
     failedBlasts: number;
+    revokedBlasts: number;
     sessions: number;
     connectedSessions: number;
     pendingWithdrawals: number;
@@ -76,7 +77,7 @@ export default function AdminHome() {
 
   const cards = [
     { label: "Total Pengguna", value: String(t.users), sub: `${t.bannedUsers} diblokir`, icon: Users, cls: "from-emerald-600 to-teal-700", to: "/adm/users" },
-    { label: "Total Blast", value: String(t.blasts), sub: `${t.sentBlasts} terkirim • ${t.failedBlasts} gagal`, icon: Send, cls: "from-teal-600 to-cyan-700", to: "/adm/blasts" },
+    { label: "Total Blast", value: String(t.blasts), sub: `${t.sentBlasts} terkirim • ${t.failedBlasts} gagal${t.revokedBlasts ? ` • ${t.revokedBlasts} dihapus` : ""}`, icon: Send, cls: "from-teal-600 to-cyan-700", to: "/adm/blasts" },
     { label: "Sesi WhatsApp", value: String(t.sessions), sub: `${t.connectedSessions} terhubung`, icon: Smartphone, cls: "from-emerald-500 to-emerald-700", to: "/adm/sessions" },
     { label: "Withdraw Pending", value: String(t.pendingWithdrawals), sub: rupiah(t.pendingWithdrawAmount), icon: Banknote, cls: "from-amber-500 to-orange-600", to: "/adm/withdrawals" },
     { label: "Nomor Tersedia", value: String(t.availableTargets), sub: `${t.usedTargets} dipakai`, icon: Database, cls: "from-slate-700 to-slate-900", to: "/adm/numbers" },
