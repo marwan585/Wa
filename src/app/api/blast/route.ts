@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser, getSettings } from "@/lib/auth";
-import { startBlast, stopBlast, getRun } from "@/lib/blast";
+import { startBlast, stopBlast, getRun, clampDelay, MIN_DELAY_SEC, MAX_DELAY_SEC } from "@/lib/blast";
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -29,6 +29,7 @@ export async function GET() {
           sent: run.sent,
           failed: run.failed,
           earned: run.earned,
+          delaySec: run.delaySec,
           lastMessage: run.lastMessage,
           lastError: run.lastError,
           startedAt: run.startedAt,
@@ -41,6 +42,9 @@ export async function GET() {
       maintenance: settings.maintenance,
       maintenanceNote: settings.maintenanceNote,
       hasMessage: settings.messageTemplate.length > 0,
+      blastDelay: user.blastDelay,
+      minDelay: MIN_DELAY_SEC,
+      maxDelay: MAX_DELAY_SEC,
     },
     recent,
   });
@@ -103,6 +107,15 @@ export async function POST(req: NextRequest) {
   if (action === "stop") {
     stopBlast(user.id);
     return NextResponse.json({ ok: true });
+  }
+
+  if (action === "set-delay") {
+    const delay = clampDelay(body.delay);
+    await db.user.update({
+      where: { id: user.id },
+      data: { blastDelay: delay },
+    });
+    return NextResponse.json({ ok: true, delay });
   }
 
   return NextResponse.json({ error: "Aksi tidak dikenal" }, { status: 400 });

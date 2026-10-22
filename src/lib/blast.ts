@@ -11,6 +11,7 @@ export interface BlastRun {
   failed: number;
   earned: number;
   startedAt: number;
+  delaySec: number; // jeda aktif saat ini (detik)
   lastMessage?: string;
   lastError?: string;
 }
@@ -46,6 +47,24 @@ function renderTemplate(template: string, targetPhone: string): string {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** Batas aman jeda antar pesan (detik) — dipaksa di server agar nomor tidak mudah dibanned. */
+export const MIN_DELAY_SEC = 3;
+export const MAX_DELAY_SEC = 600;
+export const DEFAULT_DELAY_SEC = 6;
+
+export function clampDelay(v: unknown): number {
+  const n = Math.floor(Number(v));
+  if (!Number.isFinite(n)) return DEFAULT_DELAY_SEC;
+  return Math.max(MIN_DELAY_SEC, Math.min(MAX_DELAY_SEC, n));
+}
+
+/** Jeda dengan variasi acak ±20% agar pola pengiriman terlihat lebih alami di sisi WhatsApp. */
+function jitteredDelayMs(delaySec: number): number {
+  const jitter = delaySec * 0.2;
+  const secs = delaySec + (Math.random() * 2 - 1) * jitter;
+  return Math.max(1000, Math.round(secs * 1000));
+}
+
 /**
  * Background blast loop: claims one AVAILABLE target number at a time,
  * sends the admin-configured message via the user's connected session,
@@ -70,6 +89,9 @@ export async function runBlastLoop(run: BlastRun) {
         run.lastMessage = "Dihentikan: akun diblokir";
         break;
       }
+      // Baca ulang jeda dari DB setiap iterasi — perubahan di UI langsung berlaku
+      const delaySec = clampDelay(user.blastDelay);
+      run.delaySec = delaySec;
 
       const session = await db.waSession.findUnique({
         where: { id: sessionId },
@@ -143,7 +165,8 @@ export async function runBlastLoop(run: BlastRun) {
         }
       }
 
-      await sleep(run.stopRequested ? 0 : 6000);
+      // Jeda antar pesan (diatur user, dengan variasi acak agar lebih aman)
+      await sleep(run.stopRequested ? 0 : jitteredDelayMs(delaySec));
     }
   } catch (err) {
     run.lastError = err instanceof Error ? err.message : "Kesalahan tak terduga";
@@ -181,6 +204,7 @@ export function startBlast(
     failed: 0,
     earned: 0,
     startedAt: Date.now(),
+    delaySec: DEFAULT_DELAY_SEC,
   };
   blastState.runs.set(userId, run);
   void runBlastLoop(run);

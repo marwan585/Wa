@@ -15,6 +15,7 @@ model User {
   password     String
   balance      Int          @default(0)
   totalEarned  Int          @default(0)
+  blastDelay   Int          @default(6) // jeda antar pesan blast (detik), diatur user, min 3
   status       String       @default("ACTIVE") // ACTIVE | BANNED
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt

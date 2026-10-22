@@ -5,6 +5,7 @@ import { api, rupiah, dateTime, useApp } from "@/lib/store";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -27,6 +28,8 @@ import {
   Info,
   ShieldAlert,
   Activity,
+  Timer,
+  Save,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -45,13 +48,22 @@ interface BlastData {
     sent: number;
     failed: number;
     earned: number;
+    delaySec?: number;
     lastMessage?: string;
     lastError?: string;
     startedAt: number;
   } | null;
   targets: { available: number; used: number };
   stats: { sentCount: number };
-  settings: { ratePerChat: number; maintenance: boolean; maintenanceNote: string; hasMessage: boolean };
+  settings: {
+    ratePerChat: number;
+    maintenance: boolean;
+    maintenanceNote: string;
+    hasMessage: boolean;
+    blastDelay: number;
+    minDelay: number;
+    maxDelay: number;
+  };
   recent: BlastRow[];
 }
 
@@ -62,13 +74,19 @@ export default function DashBlast() {
   const [sessions, setSessions] = useState<Array<{ id: string; phone: string; status: string }>>([]);
   const [sessionId, setSessionId] = useState<string>("");
   const [acting, setActing] = useState(false);
+  const [delayInput, setDelayInput] = useState<string>("");
+  const [savingDelay, setSavingDelay] = useState(false);
 
   const loadAll = useCallback(async () => {
     const [blastRes, sessRes] = await Promise.all([
       api<BlastData>("/api/blast"),
       api<{ sessions: Array<{ id: string; phone: string; status: string }> }>("/api/whatsapp/sessions"),
     ]);
-    if (blastRes.ok) setData(blastRes.data);
+    if (blastRes.ok) {
+      setData(blastRes.data);
+      // Isi input jeda hanya sekali (agar tidak menimpa saat user sedang mengetik)
+      setDelayInput((prev) => (prev === "" ? String(blastRes.data.settings.blastDelay) : prev));
+    }
     if (sessRes.ok) {
       const conns = sessRes.data.sessions;
       setSessions(conns);
@@ -109,6 +127,33 @@ export default function DashBlast() {
       await refresh();
     } finally {
       setActing(false);
+    }
+  }
+
+  async function saveDelay() {
+    const n = parseInt(delayInput, 10);
+    if (!Number.isFinite(n)) {
+      toast({ title: "Jeda tidak valid", description: "Masukkan angka detik.", variant: "destructive" });
+      return;
+    }
+    setSavingDelay(true);
+    try {
+      const res = await api<{ ok: boolean; delay: number }>("/api/blast", {
+        method: "POST",
+        body: JSON.stringify({ action: "set-delay", delay: n }),
+      });
+      if (!res.ok) {
+        toast({ title: "Gagal", description: res.data.error || "Tidak bisa menyimpan jeda", variant: "destructive" });
+        return;
+      }
+      setDelayInput(String(res.data.delay));
+      toast({
+        title: "Jeda disimpan",
+        description: `Jeda ${res.data.delay} detik — langsung berlaku untuk pesan berikutnya.`,
+      });
+      await loadAll();
+    } finally {
+      setSavingDelay(false);
     }
   }
 
@@ -160,7 +205,7 @@ export default function DashBlast() {
             Panel Kontrol
           </CardTitle>
           <CardDescription>
-            Pilih sesi WhatsApp yang terhubung, lalu mulai blast. Jeda 6 detik antar pesan untuk keamanan nomor.
+            Pilih sesi WhatsApp yang terhubung, atur jeda antar pesan, lalu mulai blast.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -200,6 +245,47 @@ export default function DashBlast() {
             </div>
           </div>
 
+          {/* Pengaturan jeda antar pesan */}
+          <div className="rounded-xl border border-sky-100 bg-sky-50/40 p-4">
+            <div className="grid sm:grid-cols-[1fr_auto] gap-3 items-end">
+              <div className="space-y-1.5">
+                <label htmlFor="blast-delay" className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+                  <Timer className="h-4 w-4 text-sky-600" />
+                  Jeda per chat (detik)
+                </label>
+                <Input
+                  id="blast-delay"
+                  type="number"
+                  min={data.settings.minDelay}
+                  max={data.settings.maxDelay}
+                  className="h-11 border-slate-200 bg-white focus-visible:ring-sky-500"
+                  value={delayInput}
+                  onChange={(e) => setDelayInput(e.target.value)}
+                  inputMode="numeric"
+                />
+                <p className="text-[11px] leading-relaxed text-slate-500">
+                  Batas {data.settings.minDelay}–{data.settings.maxDelay} detik. Sistem otomatis menambah variasi acak ±20%
+                  agar pola kirim terlihat alami. Perubahan langsung berlaku, bahkan saat blast sedang berjalan.
+                </p>
+              </div>
+              <Button
+                onClick={saveDelay}
+                disabled={savingDelay}
+                className="h-11 bg-sky-600 hover:bg-sky-700 gap-2"
+              >
+                {savingDelay ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Simpan Jeda
+              </Button>
+            </div>
+            <p className="mt-2.5 flex items-start gap-1.5 text-[11px] text-sky-700">
+              <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+              <span>
+                Jeda aktif: <b>{data.run?.delaySec ?? data.settings.blastDelay} detik</b> · Rekomendasi 10–30 detik
+                untuk nomor baru agar tidak terdeteksi spam oleh WhatsApp.
+              </span>
+            </p>
+          </div>
+
           <div className="flex flex-wrap gap-3">
             <Button
               onClick={() => act("start")}
@@ -230,6 +316,10 @@ export default function DashBlast() {
               {data.run?.lastMessage && (
                 <p className="text-xs text-emerald-700/80">{data.run.lastMessage}</p>
               )}
+              <p className="text-[11px] text-emerald-600/80 flex items-center gap-1">
+                <Timer className="h-3 w-3" />
+                Jeda antar pesan: {data.run?.delaySec ?? data.settings.blastDelay} detik (+ variasi acak)
+              </p>
             </div>
           )}
         </CardContent>
