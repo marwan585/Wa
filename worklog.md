@@ -70,3 +70,16 @@ Work Log:
 
 Stage Summary:
 - User tinggal copy-paste 1 command di /root/Wa untuk install & jalankan semuanya
+
+---
+Task ID: 5
+Agent: Main Agent (Z.ai)
+Task: Solusi error EADDRINUSE 0.0.0.0:443 di VPS user
+
+Work Log:
+- Diagnosis: port 443 sudah dipakai proses lain (web server bawaan/sisa proses node)
+- Buat 1 command: identifikasi (ss) -> stop/disable nginx/apache2/caddy/lighttpd -> pm2 kill -> fuser -k 443/tcp -> start ulang PM2
+- Tambah baris troubleshooting EADDRINUSE di DEPLOYMENT.md, commit+push
+
+Stage Summary:
+- User jalankan 1 command untuk bebaskan port 443 dan start ulang aplikasi
