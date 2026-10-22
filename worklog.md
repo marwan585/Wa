@@ -139,3 +139,22 @@ Work Log:
 Stage Summary:
 - Solusi: login admin HARUS di http://IP:2053/#/adm dengan Marwan/marwan123
 - Ini by design (kredensial admin tidak tampil di UI manapun)
+
+---
+Task ID: 10
+Agent: Main Agent (Z.ai)
+Task: Perbaiki pairing code agar andal + dukungan WhatsApp Business
+
+Work Log:
+- Diagnosis kode lama: requestPairingCode dipanggil saat "connecting" dengan setTimeout 3.5s (race condition), tanpa retry, tanpa regenerasi kode, sesi tak restore saat boot
+- Rewrite src/lib/whatsapp.ts: pairing diminta pada event qr (timing benar), retry 3x backoff, mutex, kode baru tiap siklus qr, max reconnect 10, flag closedManually, regenerasiPairingCode + reconnectSession + restoreAllSessions
+- Deteksi WA Business via sock.getBusinessProfile saat connection open -> accountType PERSONAL/BUSINESS
+- prisma schema: WaSession.accountType, db push + generate (verifikasi kolom OK)
+- src/instrumentation.ts: register() -> restoreAllSessions() saat server boot
+- API sessions/[id]: POST REGENERATE_PAIRING & RECONNECT; GET/POST include accountType
+- UI dash-whatsapp: tombol Kode Pairing Baru, Sambungkan Ulang, badge WA Business, instruksi pairing menyebut WhatsApp Business
+- Build sukses; commit+push 0d6bb4b
+
+Stage Summary:
+- User jalankan command update di VPS (prisma db push + build + restart)
+- Pairing kini andal; akun WhatsApp Business didukung penuh + terdeteksi otomatis
