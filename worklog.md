@@ -176,3 +176,24 @@ Work Log:
 Stage Summary:
 - UI dashboard user & admin kini modern dengan navigator mengambang + tombol sidebar cantik
 - README terpublish di GitHub; user tinggal jalankan 1 command update di VPS
+
+---
+Task ID: 12
+Agent: Main Agent (Z.ai)
+Task: User "Rapihkan karna belum rapih" (screenshot mobile halaman Koneksi WhatsApp)
+
+Work Log:
+- Diagnosis screenshot: (1) dock navigasi mengambang tidak center & item Beranda terpotong; (2) teks alert "Cara pairing" patah per kata per segmen bold
+- Akar bug dock: class -translate-x-1/2 (properti `translate` Tailwind v4) terkomposisi dengan animasi sb-dock-in yang menganimasikan `transform: translate(-50%,...)` fill both -> geser 2x50% ke kiri
+- Fix dock (user-shell & admin-shell): wrapper fixed inset-x-0 flex justify-center pointer-events-none, dock pointer-events-auto, keyframes sb-dock-in jadi translateY+scale saja
+- Akar teks patah: ui/alert.tsx AlertDescription pakai `grid justify-items-start gap-1` -> setiap text node/<b> jadi grid item di baris sendiri
+- Fix global: AlertDescription jadi block leading-relaxed (berlaku semua halaman: blast maintenance, withdraw, profile)
+- dash-whatsapp: instruksi pairing ditulis ulang jadi 4 langkah bernomor dengan badge gradien + footer catatan WA Business
+- Keamanan git: .env & db/custom.db DI-UNTRACK dari repo (data produksi tidak lagi ter-push ke GitHub), .gitignore += /.env /db/ /sessions/ /upload/ /scripts/ /worklog.md /.sb-secrets
+- setup.sh BARU: installer/updater 1 command (git fetch+reset dengan backup db/.env/sessions otomatis ke /tmp/.sb-backup + restore, secret persisten di .sb-secrets, npm install, prisma, build, ufw 2053, pm2 restart+save)
+- README.md: section instalasi cepat diganti alur `cd /root/Wa && bash setup.sh`
+- Verifikasi visual via agent-browser (viewport 360px): dock user centered=true (35|325), dock admin 7 item centered=true (9|351), alert withdraw mengalir normal, langkah pairing rapi; build sukses; push 45db4be
+
+Stage Summary:
+- UI kini rapi & center di mobile maupun desktop; repo tidak lagi membocorkan db/.env
+- User cukup jalankan SATU command di VPS: cd /root/Wa && bash setup.sh
