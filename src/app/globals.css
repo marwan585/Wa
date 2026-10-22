@@ -214,11 +214,11 @@
 
 @keyframes sb-dock-in {
   from {
-    transform: translate(-50%, 26px);
+    transform: translateY(26px) scale(0.96);
     opacity: 0;
   }
   to {
-    transform: translate(-50%, 0);
+    transform: translateY(0) scale(1);
     opacity: 1;
   }
 }

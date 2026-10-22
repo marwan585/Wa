@@ -44,7 +44,7 @@ Dibangun dengan Next.js 16 · Baileys · Prisma · Tailwind CSS · shadcn/ui
 
 ## ⚡ Instalasi Cepat — 1 Command
 
-> Untuk VPS Ubuntu 20.04+ (as root). Command ini menginstal semuanya: update kode, install dependensi, build, dan menjalankan aplikasi via PM2.
+> Untuk VPS Ubuntu 20.04+ (as root). `setup.sh` menginstal semuanya otomatis: tarik kode terbaru, install dependensi, sinkron database, build, dan jalankan via PM2. **Database & sesi WhatsApp selalu aman** (di-backup otomatis sebelum update).
 
 **0️⃣ Persiapan sekali saja** (jika VPS masih kosong):
 
@@ -55,10 +55,16 @@ apt update && apt install -y curl git && curl -fsSL https://deb.nodesource.com/s
 **1️⃣ Install & jalankan semuanya (1 command):**
 
 ```bash
-cd /root/Wa && git fetch origin && git reset --hard origin/main && mkdir -p sessions && sed -i "s|/opt/sisterblast|$PWD|g; s|ganti-dengan-string-acak-panjang-untuk-user|$(openssl rand -hex 32)|; s|ganti-dengan-string-acak-panjang-untuk-admin|$(openssl rand -hex 32)|" ecosystem.config.js && echo "DATABASE_URL=file:$PWD/db/custom.db" > .env && npm install --legacy-peer-deps && npx prisma generate && npx prisma db push && npm run build && (pm2 delete sister-blast 2>/dev/null; true) && pm2 start ecosystem.config.js && pm2 save && sleep 3 && pm2 logs sister-blast --lines 15 --nostream
+cd /root/Wa && bash setup.sh
 ```
 
-Selesai! 🎉 Website live di **`http://IP-VPS:2053`**
+**🔄 Update ke versi terbaru kapan saja — command yang sama:**
+
+```bash
+cd /root/Wa && bash setup.sh
+```
+
+Selesai! 🎉 Website live di **`http://IP-VPS:2053`** — Panel admin di **`http://IP-VPS:2053/#/adm`**
 
 ---
 

@@ -125,13 +125,33 @@ export default function DashWhatsapp() {
         </p>
       </div>
 
-      <Alert className="border-emerald-200 bg-emerald-50/60 text-emerald-800">
-        <Info className="h-4 w-4 text-emerald-600" />
-        <AlertDescription className="text-[13px] leading-relaxed">
-          <b>Cara pairing:</b> buka WhatsApp / <b>WhatsApp Business</b> di HP Anda → <b>Setelan</b> → <b>Perangkat Tertaut</b> →{" "}
-          <b>Tautkan dengan Nomor Telepon Saja</b> → masukkan kode 8 digit yang muncul di sini. Mendukung akun WhatsApp biasa maupun WhatsApp Business.
-        </AlertDescription>
-      </Alert>
+      {/* Pairing steps */}
+      <div className="rounded-2xl border border-emerald-100 bg-white/80 shadow-sm p-4 sm:p-5">
+        <p className="flex items-center gap-2.5 text-sm font-bold text-slate-900 mb-3.5">
+          <span className="h-7 w-7 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-md shadow-emerald-500/25 shrink-0">
+            <Info className="h-4 w-4 text-white" />
+          </span>
+          Cara Pairing — tanpa scan QR
+        </p>
+        <ol className="space-y-2.5">
+          {[
+            <>Buka aplikasi <b>WhatsApp</b> atau <b>WhatsApp Business</b> di HP Anda.</>,
+            <>Masuk ke <b>Setelan</b> → <b>Perangkat Tertaut</b>.</>,
+            <>Pilih <b>Tautkan dengan Nomor Telepon Saja</b>.</>,
+            <>Masukkan <b>kode 8 digit</b> yang tampil pada kartu sesi di halaman ini.</>,
+          ].map((step, i) => (
+            <li key={i} className="flex items-start gap-3">
+              <span className="mt-0.5 h-5 w-5 shrink-0 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white text-[10px] font-bold flex items-center justify-center shadow-sm">
+                {i + 1}
+              </span>
+              <p className="text-[13px] leading-relaxed text-slate-600">{step}</p>
+            </li>
+          ))}
+        </ol>
+        <p className="mt-3 pt-3 border-t border-emerald-50 text-[11px] text-slate-400">
+          Mendukung akun WhatsApp biasa maupun WhatsApp Business.
+        </p>
+      </div>
 
       {/* Add form */}
       <Card className="border-emerald-100 shadow-sm">

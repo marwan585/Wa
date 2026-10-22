@@ -313,29 +313,28 @@ export default function AdminShell({ route }: { route: string }) {
       </main>
 
       {/* ============ FLOATING APP NAVIGATOR (mobile dock, dark) ============ */}
-      <nav
-        className="lg:hidden fixed bottom-3 left-1/2 -translate-x-1/2 z-50 sb-dock-dark sb-dock-in rounded-[20px] px-1.5 py-2 flex items-end gap-0.5"
-        style={{ paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom, 0px) * 0.4)" }}
-      >
-        {menu.map((m) => {
-          const active = current === m.key;
-          return (
-            <button
-              key={m.key}
-              onClick={() => navigate(m.key)}
-              className={cn(
-                "sb-nav-item flex flex-col items-center justify-center gap-0.5 rounded-xl min-w-[46px] px-1 py-1.5",
-                active
-                  ? "sb-nav-active-dark sb-dock-item-active text-white scale-[1.05]"
-                  : "text-slate-500 active:bg-white/5"
-              )}
-            >
-              <m.icon className={cn("h-5 w-5", active && "drop-shadow")} />
-              <span className="text-[9px] font-bold leading-none">{m.short}</span>
-            </button>
-          );
-        })}
-      </nav>
+      <div className="lg:hidden fixed bottom-0 inset-x-0 z-50 flex justify-center pointer-events-none px-2" style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px) * 0.6)" }}>
+        <nav className="pointer-events-auto sb-dock-dark sb-dock-in rounded-[20px] px-1.5 py-1.5 flex items-center gap-0.5">
+          {menu.map((m) => {
+            const active = current === m.key;
+            return (
+              <button
+                key={m.key}
+                onClick={() => navigate(m.key)}
+                className={cn(
+                  "sb-nav-item flex flex-col items-center justify-center gap-0.5 rounded-xl min-w-[44px] px-1 py-1.5",
+                  active
+                    ? "sb-nav-active-dark sb-dock-item-active text-white scale-[1.05]"
+                    : "text-slate-500 active:bg-white/5"
+                )}
+              >
+                <m.icon className={cn("h-5 w-5", active && "drop-shadow")} />
+                <span className="text-[9px] font-bold leading-none">{m.short}</span>
+              </button>
+            );
+          })}
+        </nav>
+      </div>
     </div>
   );
 }
