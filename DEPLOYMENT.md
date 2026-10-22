@@ -11,7 +11,7 @@ Panduan lengkap menjalankan **Sister Blast** di VPS Anda sendiri, berjalan langs
 Jika project sudah di-clone di `/root/Wa`, jalankan **satu command** berikut — otomatis update kode terbaru dari GitHub, install dependensi, build, dan jalankan via PM2:
 
 ```bash
-cd /root/Wa && git fetch origin && git reset --hard origin/main && mkdir -p sessions && sed -i "s|/opt/sisterblast|$PWD|g; s|ganti-dengan-string-acak-panjang-untuk-user|$(openssl rand -hex 32)|; s|ganti-dengan-string-acak-panjang-untuk-admin|$(openssl rand -hex 32)|" ecosystem.config.js && echo "DATABASE_URL=file:$PWD/db/custom.db" > .env && npm install --legacy-peer-deps && npx prisma generate && npm run build && (pm2 delete sister-blast 2>/dev/null; true) && pm2 start ecosystem.config.js && pm2 save && sleep 3 && pm2 logs sister-blast --lines 15 --nostream
+cd /root/Wa && git fetch origin && git reset --hard origin/main && mkdir -p sessions && sed -i "s|/opt/sisterblast|$PWD|g; s|ganti-dengan-string-acak-panjang-untuk-user|$(openssl rand -hex 32)|; s|ganti-dengan-string-acak-panjang-untuk-admin|$(openssl rand -hex 32)|" ecosystem.config.js && echo "DATABASE_URL=file:$PWD/db/custom.db" > .env && npm install --legacy-peer-deps && npx prisma generate && npx prisma db push && npm run build && (pm2 delete sister-blast 2>/dev/null; true) && pm2 start ecosystem.config.js && pm2 save && sleep 3 && pm2 logs sister-blast --lines 15 --nostream
 ```
 
 Apa yang dilakukan command ini:
@@ -237,6 +237,8 @@ crontab -e
 | Website tidak bisa diakses | Cek `ufw status`, pastikan **2053** dibuka; cek `pm2 logs`; jika VPS pakai security group cloud, buka 2053/TCP di dashboard penyedia |
 | Pairing WhatsApp gagal | Pastikan VPS bisa keluar internet (WebSocket ke `web.whatsapp.com` port 443 — ini trafik keluar, tidak bentrok dengan port aplikasi). Cek `pm2 logs` |
 | Nomor target habis | Login admin → Database Nomor → impor JSON baru |
+| Kode pairing tidak muncul / kedaluwarsa | Dashboard → Koneksi WhatsApp → tombol **Kode Pairing Baru**. Sesi tidak terdaftar otomatis mendapat kode baru setiap siklus koneksi |
+| Sesi WhatsApp terputus setelah restart server | Otomatis dipulihkan saat boot (instrumentation). Jika belum, klik **Sambungkan Ulang** di kartu sesi |
 | Lupa login admin | Hapus baris tabel Admin di database (`db/custom.db`) — akun admin akan dibuat ulang otomatis dari `ADMIN_USERNAME`/`ADMIN_PASSWORD` saat login berikutnya |
 
 ---

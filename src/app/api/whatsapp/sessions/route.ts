@@ -22,6 +22,7 @@ export async function GET() {
       phone: s.phone,
       status: rt ? rt.status : "DISCONNECTED",
       pairingCode: rt?.pairingCode,
+      accountType: rt?.accountType || s.accountType,
       createdAt: s.createdAt,
     };
   });
@@ -65,6 +66,7 @@ export async function POST(req: NextRequest) {
         phone,
         status: rt?.status || "CONNECTING",
         pairingCode: rt?.pairingCode,
+        accountType: rt?.accountType || "UNKNOWN",
       },
     });
   } catch (err) {

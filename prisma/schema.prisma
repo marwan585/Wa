@@ -31,13 +31,14 @@ model Admin {
 }
 
 model WaSession {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  phone     String
-  status    String   @default("WAITING_PAIRING") // WAITING_PAIRING | PAIRING_CODE | CONNECTED | DISCONNECTED
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phone       String
+  status      String   @default("WAITING_PAIRING") // WAITING_PAIRING | PAIRING_CODE | CONNECTED | DISCONNECTED
+  accountType String   @default("UNKNOWN") // UNKNOWN | PERSONAL | BUSINESS
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Blast {

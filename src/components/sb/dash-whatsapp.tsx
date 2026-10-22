@@ -20,6 +20,8 @@ import {
   KeyRound,
   Info,
   RefreshCw,
+  RotateCcw,
+  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +30,7 @@ interface SessionRow {
   phone: string;
   status: string;
   pairingCode?: string;
+  accountType?: string;
   createdAt: string;
 }
 
@@ -91,6 +94,28 @@ export default function DashWhatsapp() {
     toast({ title: "Kode disalin", description: `${code} siap dipakai di WhatsApp.` });
   }
 
+  async function regeneratePairing(id: string) {
+    const res = await api<{ session: SessionRow }>(`/api/whatsapp/sessions/${id}`, {
+      method: "POST",
+      body: JSON.stringify({ action: "REGENERATE_PAIRING" }),
+    });
+    if (!res.ok) {
+      toast({ title: "Gagal", description: res.data.error || "Coba lagi sebentar.", variant: "destructive" });
+    } else {
+      toast({ title: "Kode baru dibuat", description: "Masukkan kode terbaru di WhatsApp Anda." });
+    }
+    await load();
+  }
+
+  async function reconnect(id: string) {
+    await api(`/api/whatsapp/sessions/${id}`, {
+      method: "POST",
+      body: JSON.stringify({ action: "RECONNECT" }),
+    });
+    toast({ title: "Menyambungkan ulang…", description: "Jika kredensial masih valid, sesi langsung aktif." });
+    await load();
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -103,8 +128,8 @@ export default function DashWhatsapp() {
       <Alert className="border-emerald-200 bg-emerald-50/60 text-emerald-800">
         <Info className="h-4 w-4 text-emerald-600" />
         <AlertDescription className="text-[13px] leading-relaxed">
-          <b>Cara pairing:</b> buka WhatsApp di HP Anda → <b>Setelan</b> → <b>Perangkat Tertaut</b> →{" "}
-          <b>Tautkan dengan Nomor Telepon Saja</b> → masukkan kode 8 digit yang muncul di sini.
+          <b>Cara pairing:</b> buka WhatsApp / <b>WhatsApp Business</b> di HP Anda → <b>Setelan</b> → <b>Perangkat Tertaut</b> →{" "}
+          <b>Tautkan dengan Nomor Telepon Saja</b> → masukkan kode 8 digit yang muncul di sini. Mendukung akun WhatsApp biasa maupun WhatsApp Business.
         </AlertDescription>
       </Alert>
 
@@ -184,7 +209,15 @@ export default function DashWhatsapp() {
                         <MessageCircle className="h-5 w-5 text-white" />
                       </div>
                       <div className="min-w-0">
-                        <p className="font-bold text-slate-900 truncate">+{s.phone}</p>
+                        <p className="font-bold text-slate-900 truncate flex items-center gap-1.5">
+                          +{s.phone}
+                          {s.status === "CONNECTED" && s.accountType === "BUSINESS" && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 border border-purple-200 px-2 py-0.5 text-[10px] font-bold text-purple-700 shrink-0">
+                              <Building2 className="h-3 w-3" />
+                              WA Business
+                            </span>
+                          )}
+                        </p>
                         <p className="text-[11px] text-slate-400">{dateTime(s.createdAt)}</p>
                       </div>
                     </div>
@@ -216,16 +249,40 @@ export default function DashWhatsapp() {
                     <div className="mt-4 rounded-xl bg-emerald-50 border border-emerald-100 px-3.5 py-2.5 flex items-center gap-2">
                       <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
                       <p className="text-xs text-emerald-700">
-                        Siap dipakai untuk blast — buka menu Blast untuk mulai menghasilkan.
+                        {s.accountType === "BUSINESS"
+                          ? "Akun WhatsApp Business terhubung — siap dipakai untuk blast."
+                          : "Siap dipakai untuk blast — buka menu Blast untuk mulai menghasilkan."}
                       </p>
                     </div>
                   )}
 
-                  <div className="mt-4 flex gap-2">
+                  <div className="mt-4 flex flex-wrap gap-2">
                     <Button size="sm" variant="outline" className="gap-1.5 flex-1" onClick={load}>
                       <RefreshCw className="h-3.5 w-3.5" />
                       Muat ulang
                     </Button>
+                    {s.status !== "CONNECTED" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 flex-1 border-amber-300 text-amber-700 hover:bg-amber-50"
+                        onClick={() => regeneratePairing(s.id)}
+                      >
+                        <KeyRound className="h-3.5 w-3.5" />
+                        Kode Pairing Baru
+                      </Button>
+                    )}
+                    {(s.status === "DISCONNECTED" || s.status === "PAIRING_CODE") && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 flex-1"
+                        onClick={() => reconnect(s.id)}
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" />
+                        Sambungkan Ulang
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="outline"

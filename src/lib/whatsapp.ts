@@ -19,10 +19,17 @@ export type SessionStatus =
   | "CONNECTED"
   | "DISCONNECTED";
 
+export type AccountType = "UNKNOWN" | "PERSONAL" | "BUSINESS";
+
 export interface SessionRuntime {
   socket: ReturnType<typeof makeWASocket> | null;
   status: SessionStatus;
   pairingCode?: string;
+  accountType: AccountType;
+  /** guards against concurrent requestPairingCode calls */
+  pairingInProgress: boolean;
+  /** true when socket is intentionally stopped (logout / regenerate) */
+  closedManually: boolean;
   userId: string;
   phone: string;
   reconnectAttempts: number;
@@ -40,6 +47,13 @@ const globalForWa = globalThis as unknown as {
 export const waManager: ManagerState =
   globalForWa.sisterBlastWa ?? { sessions: new Map() };
 globalForWa.sisterBlastWa = waManager;
+
+const MAX_RECONNECT_ATTEMPTS = 10;
+const PAIRING_MAX_RETRIES = 3;
+
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
 
 export function sessionsDir(): string {
   return process.env.SESSION_DIR || path.join(process.cwd(), "sessions");
@@ -72,10 +86,25 @@ async function updateDbSession(sessionId: string, status: SessionStatus) {
   }
 }
 
+async function updateAccountType(sessionId: string, accountType: AccountType) {
+  try {
+    await db.waSession.update({ where: { id: sessionId }, data: { accountType } });
+  } catch {
+    /* ignore */
+  }
+}
+
 /**
  * Boots a Baileys socket for the given session row.
- * If the credentials are not yet registered, it automatically
- * requests a pairing code for the given phone number.
+ *
+ * Pairing strategy (reliable):
+ * - The pairing code is requested when Baileys emits the `qr` event.
+ *   That event fires only after the WebSocket registration session is
+ *   fully established, which is the only moment requestPairingCode works.
+ * - Every new `qr` (old code expired) triggers a fresh pairing code, so
+ *   the code shown on the dashboard is always live.
+ * - Failed requests are retried automatically (3 attempts, backoff).
+ * - Works for both WhatsApp & WhatsApp Business numbers.
  */
 export async function startSocket(
   sessionId: string,
@@ -90,11 +119,17 @@ export async function startSocket(
     ({
       socket: null,
       status: "CONNECTING",
+      accountType: "UNKNOWN",
+      pairingInProgress: false,
+      closedManually: false,
       userId,
       phone,
       reconnectAttempts: 0,
       starting: null,
     } as SessionRuntime);
+  // re-booting: reset manual-close flag & pairing state
+  runtime.closedManually = false;
+  runtime.pairingInProgress = false;
   waManager.sessions.set(sessionId, runtime);
 
   const boot = (async () => {
@@ -128,24 +163,46 @@ export async function startSocket(
 
     sock.ev.on("creds.update", saveCreds);
 
+    /**
+     * Ask WhatsApp for a pairing code with retry.
+     * Called on every `qr` event while credentials are not registered.
+     */
+    const requestPairing = async () => {
+      if (runtime.pairingInProgress) return;
+      if (sock.authState?.creds?.registered) return;
+      runtime.pairingInProgress = true;
+      for (let attempt = 1; attempt <= PAIRING_MAX_RETRIES; attempt++) {
+        try {
+          const code = await sock.requestPairingCode(sanitizePhone(phone));
+          if (code) {
+            runtime.pairingCode = code.toUpperCase();
+            runtime.status = "PAIRING_CODE";
+            await updateDbSession(sessionId, "PAIRING_CODE");
+            break;
+          }
+        } catch (err) {
+          console.error(
+            `[WA] pairing code attempt ${attempt}/${PAIRING_MAX_RETRIES} failed for session ${sessionId}`,
+            err instanceof Error ? err.message : err
+          );
+          if (attempt < PAIRING_MAX_RETRIES) await sleep(2000 * attempt);
+        }
+      }
+      runtime.pairingInProgress = false;
+    };
+
     sock.ev.on("connection.update", async (update) => {
-      const { connection, lastDisconnect } = update;
+      const { connection, lastDisconnect, qr } = update;
+
+      // `qr` = registration channel ready. This is the correct moment
+      // to request a pairing code (fixes random pairing failures).
+      if (qr && !(sock.authState?.creds?.registered as boolean)) {
+        runtime.reconnectAttempts = 0; // still pairing, keep trying
+        void requestPairing();
+      }
 
       if (connection === "connecting") {
         runtime.status = "CONNECTING";
-        // Request pairing code when credentials are not registered yet
-        if (!(sock.authState?.creds?.registered as boolean)) {
-          setTimeout(async () => {
-            try {
-              const code = await sock.requestPairingCode(sanitizePhone(phone));
-              runtime.pairingCode = code?.toUpperCase();
-              runtime.status = "PAIRING_CODE";
-              await updateDbSession(sessionId, "PAIRING_CODE");
-            } catch (err) {
-              console.error("[WA] pairing code error", sessionId, err);
-            }
-          }, 3500);
-        }
       }
 
       if (connection === "open") {
@@ -153,9 +210,32 @@ export async function startSocket(
         runtime.pairingCode = undefined;
         runtime.reconnectAttempts = 0;
         await updateDbSession(sessionId, "CONNECTED");
+
+        // Detect WhatsApp Business (best-effort, never blocks)
+        try {
+          const rawJid = sock.user?.id || "";
+          const baseJid = rawJid.split(":")[0];
+          if (baseJid) {
+            const profile = await sock.getBusinessProfile(
+              `${baseJid}@s.whatsapp.net`
+            );
+            const isBusiness =
+              !!profile &&
+              typeof profile === "object" &&
+              Object.keys(profile as object).length > 0;
+            runtime.accountType = isBusiness ? "BUSINESS" : "PERSONAL";
+          } else {
+            runtime.accountType = "UNKNOWN";
+          }
+        } catch {
+          runtime.accountType = "UNKNOWN";
+        }
+        await updateAccountType(sessionId, runtime.accountType);
       }
 
       if (connection === "close") {
+        if (runtime.closedManually) return; // intentionally stopped
+
         const statusCode =
           (lastDisconnect?.error as { output?: { statusCode?: number } })
             ?.output?.statusCode ?? -1;
@@ -169,13 +249,10 @@ export async function startSocket(
           return;
         }
 
-        // Try to reconnect with backoff (max 6 attempts)
-        if (runtime.reconnectAttempts < 6) {
+        // Reconnect with backoff (covers 515 restart, timeouts, network)
+        if (runtime.reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
           runtime.reconnectAttempts += 1;
-          const wait = Math.min(
-            3000 * runtime.reconnectAttempts,
-            15000
-          );
+          const wait = Math.min(3000 * runtime.reconnectAttempts, 15000);
           setTimeout(() => {
             void startSocket(sessionId, userId, phone);
           }, wait);
@@ -208,8 +285,57 @@ export function isConnected(sessionId: string): boolean {
   const rt = waManager.sessions.get(sessionId);
   if (!rt) return false;
   if (rt.status !== "CONNECTED" || !rt.socket) return false;
-  // Socket user id (own jid) is only present once connected
   return true;
+}
+
+/**
+ * Ends the current socket and boots a fresh one so WhatsApp issues a
+ * NEW pairing code (used when the displayed code expired / failed).
+ */
+export async function regeneratePairingCode(
+  sessionId: string
+): Promise<{ ok: boolean; error?: string }> {
+  const rt = waManager.sessions.get(sessionId);
+  if (!rt) {
+    return { ok: false, error: "Sesi belum berjalan" };
+  }
+  if (rt.status === "CONNECTED") {
+    return { ok: false, error: "Sesi sudah terhubung, tidak perlu pairing" };
+  }
+
+  const { userId, phone } = rt;
+  runtimeStop(rt);
+  waManager.sessions.delete(sessionId);
+  await sleep(500);
+  await startSocket(sessionId, userId, phone);
+  return { ok: true };
+}
+
+/** Gracefully stop a runtime socket without triggering auto-reconnect. */
+function runtimeStop(rt: SessionRuntime) {
+  rt.closedManually = true;
+  try {
+    rt.socket?.end(undefined);
+  } catch {
+    /* ignore */
+  }
+  rt.socket = null;
+}
+
+/**
+ * Reconnect a disconnected session. If credentials are still registered
+ * the socket resumes directly; otherwise a new pairing code is issued.
+ */
+export async function reconnectSession(
+  sessionId: string,
+  userId: string,
+  phone: string
+): Promise<void> {
+  const rt = waManager.sessions.get(sessionId);
+  if (rt?.status === "CONNECTED") return;
+  if (rt) runtimeStop(rt);
+  waManager.sessions.delete(sessionId);
+  await startSocket(sessionId, userId, phone);
 }
 
 export async function sendText(
@@ -235,16 +361,15 @@ export async function logoutSession(
   sessionId: string
 ): Promise<{ ok: boolean }> {
   const rt = waManager.sessions.get(sessionId);
+  if (rt) {
+    runtimeStop(rt);
+  }
   try {
     if (rt?.socket) {
       try {
         await rt.socket.logout();
       } catch {
-        try {
-          rt.socket.end(undefined);
-        } catch {
-          /* ignore */
-        }
+        /* ignore */
       }
     }
   } finally {
@@ -259,14 +384,27 @@ export async function logoutSession(
   return { ok: true };
 }
 
-/** Restore connected markers after a server restart (DB cleanup helper). */
-export async function cleanupStaleDbSessions() {
+/**
+ * Called once on server boot (via instrumentation.ts):
+ * - Sessions with saved credentials resume automatically (no re-pair).
+ * - Unregistered sessions re-boot and receive a fresh pairing code.
+ * - Rows without an auth folder are marked DISCONNECTED.
+ */
+export async function restoreAllSessions() {
   try {
-    await db.waSession.updateMany({
-      where: { status: { in: ["CONNECTED", "PAIRING_CODE"] } },
-      data: { status: "DISCONNECTED" },
-    });
-  } catch {
-    /* ignore */
+    const rows = await db.waSession.findMany();
+    const dir = sessionsDir();
+    for (const row of rows) {
+      const credsFile = path.join(dir, row.id, "creds.json");
+      if (fs.existsSync(credsFile)) {
+        await startSocket(row.id, row.userId, row.phone).catch(() => undefined);
+      } else {
+        await db.waSession
+          .update({ where: { id: row.id }, data: { status: "DISCONNECTED" } })
+          .catch(() => undefined);
+      }
+    }
+  } catch (err) {
+    console.error("[WA] restoreAllSessions failed", err);
   }
 }
