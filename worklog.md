@@ -197,3 +197,21 @@ Work Log:
 Stage Summary:
 - UI kini rapi & center di mobile maupun desktop; repo tidak lagi membocorkan db/.env
 - User cukup jalankan SATU command di VPS: cd /root/Wa && bash setup.sh
+
+---
+Task ID: 13
+Agent: Main Agent (Z.ai)
+Task: Fitur pengaturan delay per chat di menu Blast (anti-ban WhatsApp)
+
+Work Log:
+- Diagnosis awal: jeda hard-coded 6000ms di lib/blast.ts loop
+- prisma/schema.prisma: User.blastDelay Int @default(6), db push sukses
+- lib/blast.ts: clampDelay (3-600s server-side), jitteredDelayMs (+/-20% acak), loop baca user.blastDelay tiap iterasi -> perubahan langsung berlaku saat blast jalan; BlastRun.delaySec
+- api/blast/route.ts: GET settings.blastDelay/minDelay/maxDelay + run.delaySec; POST action set-delay (clamp server)
+- dash-blast.tsx: kartu "Jeda per chat (detik)" biru (Input number + Simpan Jeda), hint batas & variasi acak, indikator "Jeda aktif" + rekomendasi 10-30 detik, tampil juga saat blast berjalan
+- Debug: dev server lama memegang Prisma client lama (blastDelay undefined) -> restart dev server -> verifikasi visual OK (default 6, simpan 15 tersimpan & aktif)
+- Build produksi sukses; push 55be74d
+
+Stage Summary:
+- User bisa atur jeda 3-600 detik; jeda tersimpan per-user di DB, efek langsung tanpa restart blast
+- User update VPS: cd /root/Wa && bash setup.sh (prisma db push otomatis dalam setup.sh)
