@@ -144,7 +144,11 @@ export default function DashBlast() {
         body: JSON.stringify({ action: "set-delay", delay: n }),
       });
       if (!res.ok) {
-        toast({ title: "Gagal", description: res.data.error || "Tidak bisa menyimpan jeda", variant: "destructive" });
+        toast({
+          title: "Gagal",
+          description: res.data.error || `Tidak bisa menyimpan jeda (HTTP ${res.status})`,
+          variant: "destructive",
+        });
         return;
       }
       setDelayInput(String(res.data.delay));

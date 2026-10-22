@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { db, withDbRetry } from "@/lib/db";
 import { getCurrentUser, getSettings } from "@/lib/auth";
 import { startBlast, stopBlast, getRun, clampDelay, MIN_DELAY_SEC, MAX_DELAY_SEC } from "@/lib/blast";
 
@@ -112,10 +112,22 @@ export async function POST(req: NextRequest) {
 
   if (action === "set-delay") {
     const delay = clampDelay(body.delay);
-    await db.user.update({
-      where: { id: user.id },
-      data: { blastDelay: delay },
-    });
+    try {
+      // Retry otomatis bila SQLite sedang sibuk (database is locked)
+      await withDbRetry(() =>
+        db.user.update({
+          where: { id: user.id },
+          data: { blastDelay: delay },
+        })
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message.slice(0, 160) : "Kesalahan database";
+      console.error("[BLAST] set-delay gagal:", msg);
+      return NextResponse.json(
+        { error: `Gagal menyimpan jeda: ${msg}` },
+        { status: 500 }
+      );
+    }
     return NextResponse.json({ ok: true, delay });
   }
 

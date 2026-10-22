@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { db, withDbRetry } from "@/lib/db";
 import { sendText, isConnected, sanitizePhone } from "@/lib/whatsapp";
 import { getSettings } from "@/lib/auth";
 
@@ -122,25 +122,29 @@ export async function runBlastLoop(run: BlastRun) {
       const result = await sendText(sessionId, claimed.phone, message);
 
       if (result.ok) {
-        await db.blast.create({
-          data: {
-            userId,
-            sessionPhone: session.phone,
-            targetNumber: claimed.phone,
-            message,
-            status: "SENT",
-            earning: settings.ratePerChat,
-            // ID pesan Baileys — dipakai anti-cheat deteksi penghapusan pesan
-            waMessageId: result.messageId ?? null,
-          },
-        });
-        await db.user.update({
-          where: { id: userId },
-          data: {
-            balance: { increment: settings.ratePerChat },
-            totalEarned: { increment: settings.ratePerChat },
-          },
-        });
+        await withDbRetry(() =>
+          db.blast.create({
+            data: {
+              userId,
+              sessionPhone: session.phone,
+              targetNumber: claimed.phone,
+              message,
+              status: "SENT",
+              earning: settings.ratePerChat,
+              // ID pesan Baileys — dipakai anti-cheat deteksi penghapusan pesan
+              waMessageId: result.messageId ?? null,
+            },
+          })
+        );
+        await withDbRetry(() =>
+          db.user.update({
+            where: { id: userId },
+            data: {
+              balance: { increment: settings.ratePerChat },
+              totalEarned: { increment: settings.ratePerChat },
+            },
+          })
+        );
         run.sent += 1;
         run.earned += settings.ratePerChat;
         run.lastMessage = `Terkirim ke ${claimed.phone}`;

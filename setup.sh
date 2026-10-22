@@ -83,14 +83,24 @@ ok "Database siap (data lama tetap utuh)"
 # ---------- 6. Build ----------
 step "6/7 Build aplikasi produksi (2-5 menit)"
 npm run build --loglevel=error || fail "Build gagal — jalankan 'npm run build' manual untuk lihat error"
-ok "Build selesai"
+# Sertakan aset statis ke dalam build standalone agar tampilan tidak rusak
+cp -r public .next/standalone/public 2>/dev/null || true
+mkdir -p .next/standalone/.next
+cp -r .next/static .next/standalone/.next/ 2>/dev/null || true
+ok "Build selesai (aset statis terpasang)"
 
 # ---------- 7. Firewall + PM2 ----------
 step "7/7 Jalankan aplikasi (PM2)"
 if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "active"; then
   ufw allow 2053/tcp >/dev/null 2>&1 && ok "Port 2053 dibuka di firewall"
 fi
+# Hentikan aplikasi via PM2 lalu bunuh proses yatim (bukan milik PM2).
+# Proses ganda akan berebut lock SQLite -> "database is locked" -> tombol/aksi gagal acak.
 pm2 delete sister-blast >/dev/null 2>&1 || true
+pkill -f "\.next/standalone/server.js" 2>/dev/null || true
+pkill -f "next start" 2>/dev/null || true
+pkill -f "next-server" 2>/dev/null || true
+sleep 2
 pm2 start ecosystem.config.js >/dev/null 2>&1 || fail "PM2 gagal start — cek 'pm2 logs'"
 pm2 save >/dev/null 2>&1
 sleep 3
